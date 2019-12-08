@@ -1,6 +1,7 @@
 package com.performant.coremod.entity.ai;
 
 import com.google.common.collect.Sets;
+import com.performant.coremod.Performant;
 import net.minecraft.entity.ai.goal.Goal;
 import net.minecraft.entity.ai.goal.GoalSelector;
 import net.minecraft.entity.ai.goal.PrioritizedGoal;
@@ -61,6 +62,11 @@ public class CustomGoalSelector extends GoalSelector
      * Tick counter
      */
     int counter = 0;
+
+    /**
+     * Tick interval of how often non-running goals are checked
+     */
+    private static final int notRunningCheckInterval = Performant.getConfig().getCommon().goalSelectorTickRate.get() - 1;
 
     /**
      * Create a new goalselector from an existing one, simply re-uses the references.
@@ -197,7 +203,8 @@ public class CustomGoalSelector extends GoalSelector
         }
 
         // Vanilla behaviour changed to checking it each tick with 1.14
-        if (counter++ == 1)
+        counter++;
+        if (counter == 1)
         {
             for (final PrioritizedGoal currentGoal : goals)
             {
@@ -214,7 +221,7 @@ public class CustomGoalSelector extends GoalSelector
             }
         }
 
-        if (counter > 3)
+        if (counter > notRunningCheckInterval)
         {
             counter = 0;
         }
