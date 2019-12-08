@@ -20,7 +20,7 @@ displayName="Performant" #mandatory
 # A URL to query for updates for this mod. See the JSON update specification <here>
 #updateJSONURL="http://myurl.me/" #optional
 # A URL for the "homepage" for this mod, displayed in the mod UI
-displayURL="http://example.com/" #optional
+displayURL="https://github.com/ldtteam/Performant/" #optional
 # A file name (in the root of the mod JAR) containing a logo for display
 #logoFile="examplemod.png" #optional
 # A text field displayed in the mod UI
@@ -42,7 +42,7 @@ Vanilla mod with the aim to improve vanilla performance in certain areas.
     # An ordering relationship for the dependency - BEFORE or AFTER required if the relationship is not mandatory
     ordering="NONE"
     # Side this dependency is applied on - BOTH, CLIENT or SERVER
-    side="BOTH"
+    side="SERVER"
 # Here's another dependency
 [[dependencies.performant]]
     modId="minecraft"
