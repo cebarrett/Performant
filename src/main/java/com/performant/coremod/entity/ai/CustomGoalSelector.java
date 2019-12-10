@@ -2,12 +2,15 @@ package com.performant.coremod.entity.ai;
 
 import com.google.common.collect.Sets;
 import com.performant.coremod.Performant;
+import com.performant.coremod.entity.ai.goals.CustomPriotizedTemptGoal;
 import net.minecraft.entity.ai.goal.Goal;
 import net.minecraft.entity.ai.goal.GoalSelector;
 import net.minecraft.entity.ai.goal.PrioritizedGoal;
+import net.minecraft.entity.ai.goal.TemptGoal;
 import net.minecraft.profiler.IProfiler;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -36,7 +39,7 @@ public class CustomGoalSelector extends GoalSelector
     /**
      * By vanilla design there is max 1 running goal per flag, which is running is determined by priorities. This array contains the current goal for each flag.
      */
-    private PrioritizedGoal[] flagGoalsArray = new PrioritizedGoal[FLAG_COUNT];
+    private final PrioritizedGoal[] flagGoalsArray = new PrioritizedGoal[FLAG_COUNT];
 
     /**
      * All goals added to this selector
@@ -51,12 +54,12 @@ public class CustomGoalSelector extends GoalSelector
     /**
      * Array of flags, true if currently disabled
      */
-    private boolean[] disabledFlagsArray = new boolean[FLAG_COUNT];
+    private final boolean[] disabledFlagsArray = new boolean[FLAG_COUNT];
 
     /**
      * Amount of flags.
      */
-    private static int FLAG_COUNT = Goal.Flag.values().length;
+    private static final int FLAG_COUNT = Goal.Flag.values().length;
 
     /**
      * Tick counter
@@ -78,6 +81,7 @@ public class CustomGoalSelector extends GoalSelector
         super(old.profiler);
         importFrom(old);
         super.goals = this.goals;
+        super.profiler = this.profiler;
     }
 
     /**
@@ -90,7 +94,7 @@ public class CustomGoalSelector extends GoalSelector
         super(profiler);
         this.profiler = profiler;
         super.goals = this.goals;
-
+        super.profiler = this.profiler;
         for (Goal.Flag flag : Goal.Flag.values())
         {
             flagGoalsArray[flag.ordinal()] = DUMMY;
@@ -117,6 +121,24 @@ public class CustomGoalSelector extends GoalSelector
 
         // Set goal list reference to existing
         goals = selector.goals;
+
+        final Set<PrioritizedGoal> tempGoals = new LinkedHashSet<>();
+        for (PrioritizedGoal goal : goals)
+        {
+            if (goal.getGoal() instanceof TemptGoal && Performant.getConfig().getCommon().optimizeTempt.get())
+            {
+                tempGoals.add(new CustomPriotizedTemptGoal(goal.getPriority(), goal.getGoal(), this));
+            }
+            else
+            {
+                tempGoals.add(goal);
+            }
+        }
+
+        // set goals
+        goals = tempGoals;
+        selector.goals = tempGoals;
+
         // Set profiler reference
         profiler = selector.profiler;
 
@@ -132,7 +154,14 @@ public class CustomGoalSelector extends GoalSelector
      */
     public void addGoal(int priority, Goal task)
     {
-        this.goals.add(new PrioritizedGoal(priority, task));
+        if (task instanceof TemptGoal && Performant.getConfig().getCommon().optimizeTempt.get())
+        {
+            goals.add(new CustomPriotizedTemptGoal(priority, task, this));
+        }
+        else
+        {
+            this.goals.add(new PrioritizedGoal(priority, task));
+        }
     }
 
     /**
@@ -156,11 +185,14 @@ public class CustomGoalSelector extends GoalSelector
      */
     private boolean goalContainsDisabledFlag(final PrioritizedGoal goal)
     {
-        for (final Goal.Flag flag : goal.getMutexFlags())
+        for (int i = 0; i < FLAG_COUNT; i++)
         {
-            if (disabledFlagsArray[flag.ordinal()])
+            if (disabledFlagsArray[i])
             {
-                return true;
+                if (goal.getMutexFlags().contains(Goal.Flag.values()[i]))
+                {
+                    return true;
+                }
             }
         }
         return false;
@@ -174,10 +206,10 @@ public class CustomGoalSelector extends GoalSelector
      */
     private boolean isPreemptedByAll(final PrioritizedGoal goal1)
     {
-        for (final Goal.Flag flag : goal1.getMutexFlags())
+        for (int i = 0; i < FLAG_COUNT; i++)
         {
-            final PrioritizedGoal compareGoal = flagGoalsArray[flag.ordinal()];
-            if (compareGoal.isRunning() && !compareGoal.isPreemptedBy(goal1))
+            final PrioritizedGoal compareGoal = flagGoalsArray[i];
+            if (compareGoal.isRunning() && !compareGoal.isPreemptedBy(goal1) && goal1.getMutexFlags().contains(Goal.Flag.values()[i]))
             {
                 return false;
             }
@@ -193,48 +225,42 @@ public class CustomGoalSelector extends GoalSelector
     public void tick()
     {
         this.profiler.startSection("goalUpdate");
-        for (int i = 0; i < FLAG_COUNT; i++)
-        {
-            final PrioritizedGoal goalToRun = flagGoalsArray[i];
-            if (goalToRun.isRunning() && (goalContainsDisabledFlag(goalToRun) || !goalToRun.shouldContinueExecuting()))
-            {
-                goalToRun.resetTask();
-            }
-        }
 
-        // Vanilla behaviour changed to checking it each tick with 1.14
+        boolean hasFlags;
         counter++;
-        if (counter == 1)
+
+        for (final PrioritizedGoal currentGoal : goals)
         {
-            for (final PrioritizedGoal currentGoal : goals)
+            hasFlags = !currentGoal.getMutexFlags().isEmpty();
+
+            if (currentGoal.isRunning() && (hasFlags && goalContainsDisabledFlag(currentGoal) || !currentGoal.shouldContinueExecuting()))
             {
-                if (!currentGoal.isRunning() && !goalContainsDisabledFlag(currentGoal) && isPreemptedByAll(currentGoal) && currentGoal.shouldExecute())
+                currentGoal.resetTask();
+            }
+
+            // Vanilla behaviour changed to checking it each tick with 1.14
+            if (counter == 1 && !currentGoal.isRunning() &&
+                  ((!hasFlags && currentGoal.shouldExecute()) || (hasFlags && !goalContainsDisabledFlag(currentGoal) && isPreemptedByAll(currentGoal)
+                                                                    && currentGoal.shouldExecute())))
+            {
+                for (Goal.Flag flag : currentGoal.getMutexFlags())
                 {
-                    for (Goal.Flag flag : currentGoal.getMutexFlags())
-                    {
-                        final PrioritizedGoal prioritizedgoal = flagGoalsArray[flag.ordinal()];
-                        prioritizedgoal.resetTask();
-                        flagGoalsArray[flag.ordinal()] = currentGoal;
-                    }
-                    currentGoal.startExecuting();
+                    final PrioritizedGoal prioritizedgoal = flagGoalsArray[flag.ordinal()];
+                    prioritizedgoal.resetTask();
+                    flagGoalsArray[flag.ordinal()] = currentGoal;
                 }
+                currentGoal.startExecuting();
+            }
+
+            if (currentGoal.isRunning())
+            {
+                currentGoal.tick();
             }
         }
 
         if (counter > notRunningCheckInterval)
         {
             counter = 0;
-        }
-        this.profiler.endSection();
-
-        this.profiler.startSection("goalTick");
-        for (int i = 0; i < FLAG_COUNT; i++)
-        {
-            final PrioritizedGoal goalToRun = flagGoalsArray[i];
-            if (goalToRun.isRunning())
-            {
-                goalToRun.tick();
-            }
         }
         this.profiler.endSection();
     }
@@ -246,7 +272,7 @@ public class CustomGoalSelector extends GoalSelector
      */
     public Stream<PrioritizedGoal> getRunningGoals()
     {
-        return this.flagGoals.values().stream().filter(PrioritizedGoal::isRunning);
+        return this.goals.stream().filter(PrioritizedGoal::isRunning);
     }
 
     /**
