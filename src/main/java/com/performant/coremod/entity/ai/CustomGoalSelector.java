@@ -2,11 +2,9 @@ package com.performant.coremod.entity.ai;
 
 import com.google.common.collect.Sets;
 import com.performant.coremod.Performant;
-import com.performant.coremod.entity.ai.goals.CustomPriotizedTemptGoal;
 import net.minecraft.entity.ai.goal.Goal;
 import net.minecraft.entity.ai.goal.GoalSelector;
 import net.minecraft.entity.ai.goal.PrioritizedGoal;
-import net.minecraft.entity.ai.goal.TemptGoal;
 import net.minecraft.profiler.IProfiler;
 import org.jetbrains.annotations.NotNull;
 
@@ -69,7 +67,7 @@ public class CustomGoalSelector extends GoalSelector
     /**
      * Tick interval of how often non-running goals are checked
      */
-    private static final int notRunningCheckInterval = Performant.getConfig().getCommon().goalSelectorTickRate.get() - 1;
+    public static final int SHOULD_EXECUTE_INTERVAL = Performant.getConfig().getCommon().goalSelectorTickRate.get() - 1;
 
     /**
      * Create a new goalselector from an existing one, simply re-uses the references.
@@ -125,14 +123,7 @@ public class CustomGoalSelector extends GoalSelector
         final Set<PrioritizedGoal> tempGoals = new LinkedHashSet<>();
         for (PrioritizedGoal goal : goals)
         {
-            if (goal.getGoal() instanceof TemptGoal && Performant.getConfig().getCommon().optimizeTempt.get())
-            {
-                tempGoals.add(new CustomPriotizedTemptGoal(goal.getPriority(), goal.getGoal(), this));
-            }
-            else
-            {
-                tempGoals.add(goal);
-            }
+            addGoalOrCustomToList(goal.getPriority(), goal.getGoal(), tempGoals);
         }
 
         // set goals
@@ -150,18 +141,23 @@ public class CustomGoalSelector extends GoalSelector
     }
 
     /**
+     * Adds a new goal to the selector. Creates a custom or normal priotizedgoal, depending on type.
+     *
+     * @param priority priority to use
+     * @param goal     goal to add
+     * @param goalList list of goals to add to
+     */
+    private void addGoalOrCustomToList(final int priority, final Goal goal, final Set<PrioritizedGoal> goalList)
+    {
+        goalList.add(Performant.goalData.getPriotizedGoalFor(priority, goal, this));
+    }
+
+    /**
      * Add a now AITask. Args : priority, task
      */
     public void addGoal(int priority, Goal task)
     {
-        if (task instanceof TemptGoal && Performant.getConfig().getCommon().optimizeTempt.get())
-        {
-            goals.add(new CustomPriotizedTemptGoal(priority, task, this));
-        }
-        else
-        {
-            this.goals.add(new PrioritizedGoal(priority, task));
-        }
+        addGoalOrCustomToList(priority, task, goals);
     }
 
     /**
@@ -225,23 +221,17 @@ public class CustomGoalSelector extends GoalSelector
     public void tick()
     {
         this.profiler.startSection("goalUpdate");
-
-        boolean hasFlags;
         counter++;
 
         for (final PrioritizedGoal currentGoal : goals)
         {
-            hasFlags = !currentGoal.getMutexFlags().isEmpty();
-
-            if (currentGoal.isRunning() && (hasFlags && goalContainsDisabledFlag(currentGoal) || !currentGoal.shouldContinueExecuting()))
+            if (currentGoal.isRunning() && (goalContainsDisabledFlag(currentGoal) || !currentGoal.shouldContinueExecuting()))
             {
                 currentGoal.resetTask();
             }
 
             // Vanilla behaviour changed to checking it each tick with 1.14
-            if (counter == 1 && !currentGoal.isRunning() &&
-                  ((!hasFlags && currentGoal.shouldExecute()) || (hasFlags && !goalContainsDisabledFlag(currentGoal) && isPreemptedByAll(currentGoal)
-                                                                    && currentGoal.shouldExecute())))
+            if (counter == 1 && !currentGoal.isRunning() && !goalContainsDisabledFlag(currentGoal) && isPreemptedByAll(currentGoal) && currentGoal.shouldExecute())
             {
                 for (Goal.Flag flag : currentGoal.getMutexFlags())
                 {
@@ -258,7 +248,7 @@ public class CustomGoalSelector extends GoalSelector
             }
         }
 
-        if (counter > notRunningCheckInterval)
+        if (counter > SHOULD_EXECUTE_INTERVAL)
         {
             counter = 0;
         }

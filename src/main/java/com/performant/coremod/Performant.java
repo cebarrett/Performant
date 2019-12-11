@@ -1,6 +1,7 @@
 package com.performant.coremod;
 
 import com.performant.coremod.config.Configuration;
+import com.performant.coremod.entity.ai.CustomGoalTypeData;
 import com.performant.coremod.event.EventHandler;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
@@ -18,6 +19,8 @@ public class Performant
      * The config instance.
      */
     private static Configuration config;
+
+    public static CustomGoalTypeData goalData;
 
     public Performant()
     {
@@ -37,5 +40,6 @@ public class Performant
     {
         // some preinit code
         LOGGER.info("Performant loaded.");
+        goalData = new CustomGoalTypeData();
     }
 }
