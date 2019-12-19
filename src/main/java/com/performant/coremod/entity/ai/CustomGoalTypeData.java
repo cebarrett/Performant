@@ -5,6 +5,7 @@ import com.performant.coremod.entity.ai.goals.CustomPriotizedSlowedGoal;
 import com.performant.coremod.entity.ai.goals.HurtGoals.*;
 import net.minecraft.entity.ai.goal.*;
 import net.minecraft.entity.monster.ZombiePigmanEntity;
+import net.minecraft.entity.passive.FoxEntity;
 import net.minecraft.entity.passive.PandaEntity;
 import net.minecraft.entity.passive.PolarBearEntity;
 import net.minecraft.entity.passive.horse.LlamaEntity;
@@ -66,7 +67,7 @@ public class CustomGoalTypeData
             1,
             2,
             Performant.getConfig().getCommon().optimizeHurtByTarget.get()));
-        GOAL_TYPES.put(FleeSunGoal.class, new CustomGoalTypeParameter(g -> g, 20, 1, Performant.getConfig().getCommon().slowFleeSun.get()));
+        GOAL_TYPES.put(FoxEntity.FindShelterGoal.class, new CustomGoalTypeParameter(g -> g, 20, 1, Performant.getConfig().getCommon().slowFindShelter.get()));
     }
 
     /**

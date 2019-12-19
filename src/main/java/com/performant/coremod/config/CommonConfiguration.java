@@ -10,7 +10,7 @@ public class CommonConfiguration extends AbstractConfiguration
     public final ForgeConfigSpec.BooleanValue optimizeHurtByTarget;
     public final ForgeConfigSpec.BooleanValue optimizePanic;
     public final ForgeConfigSpec.BooleanValue optimizeBreed;
-    public final ForgeConfigSpec.BooleanValue slowFleeSun;
+    public final ForgeConfigSpec.BooleanValue slowFindShelter;
 
     protected CommonConfiguration(final ForgeConfigSpec.Builder builder)
     {
@@ -46,9 +46,9 @@ public class CommonConfiguration extends AbstractConfiguration
         optimizeBreed = defineBoolean(builder, "optimizeBreed", true);
 
         builder.comment(
-          "Whether to use a slower updated AI Fox fleesun goal, which causes too much load. default = true")
+          "Whether to use a slower updated AI Fox find shelter goal, which causes too much load. default = true")
           .push("Entity");
-        slowFleeSun = defineBoolean(builder, "slowFleeSun", true);
+        slowFindShelter = defineBoolean(builder, "slowFindShelter", true);
         finishCategory(builder);
     }
 }
