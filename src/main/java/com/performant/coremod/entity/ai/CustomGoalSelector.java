@@ -1,63 +1,41 @@
 package com.performant.coremod.entity.ai;
 
-import com.google.common.collect.Sets;
 import com.performant.coremod.Performant;
-import net.minecraft.entity.ai.goal.Goal;
-import net.minecraft.entity.ai.goal.GoalSelector;
-import net.minecraft.entity.ai.goal.PrioritizedGoal;
-import net.minecraft.profiler.IProfiler;
-import org.jetbrains.annotations.NotNull;
+import com.performant.coremod.config.Configuration;
+import com.performant.coremod.entity.ai.goals.CustomPriotizedSlowedGoal;
+import net.minecraft.entity.ai.EntityAIBase;
+import net.minecraft.entity.ai.EntityAITasks;
+import net.minecraft.profiler.Profiler;
 
-import java.util.LinkedHashSet;
-import java.util.Set;
-import java.util.stream.Stream;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Random;
 
 /**
  * A simplified goal selector, for more performance.
  */
-public class CustomGoalSelector extends GoalSelector
+public class CustomGoalSelector extends EntityAITasks
 {
-    /**
-     * Dummy Goal, used for filling up the list.
-     */
-    private static final PrioritizedGoal DUMMY = new PrioritizedGoal(Integer.MAX_VALUE, new Goal()
-    {
-        public boolean shouldExecute()
-        {
-            return false;
-        }
-    })
-    {
-        public boolean isRunning()
-        {
-            return false;
-        }
-    };
-
-    /**
-     * By vanilla design there is max 1 running goal per flag, which is running is determined by priorities. This array contains the current goal for each flag.
-     */
-    private final PrioritizedGoal[] flagGoalsArray = new PrioritizedGoal[FLAG_COUNT];
-
     /**
      * All goals added to this selector
      */
-    public Set<PrioritizedGoal> goals = Sets.newHashSet();
+    public final List<CustomPriotizedSlowedGoal> goals = new ArrayList<>();
 
     /**
      * Profiler used for debug information /debug
      */
-    private IProfiler profiler;
+    private Profiler profiler;
 
     /**
      * Array of flags, true if currently disabled
      */
-    private final boolean[] disabledFlagsArray = new boolean[FLAG_COUNT];
+    private int disabledFlags = 0;
 
-    /**
-     * Amount of flags.
-     */
-    private static final int FLAG_COUNT = Goal.Flag.values().length;
+    private int runningFlags           = 0;
+    private int runningNoOverRuleFlags = 0;
+
+    public int trackingPlayers = 0;
 
     /**
      * Tick counter
@@ -67,36 +45,21 @@ public class CustomGoalSelector extends GoalSelector
     /**
      * Tick interval of how often non-running goals are checked
      */
-    public static final int SHOULD_EXECUTE_INTERVAL = Performant.getConfig().getCommon().goalSelectorTickRate.get() - 1;
+    public static final int SHOULD_EXECUTE_INTERVAL = Configuration.ai.goalSelectorTickRate - 1;
 
     /**
      * Create a new goalselector from an existing one, simply re-uses the references.
      *
      * @param old the old selector to use
      */
-    public CustomGoalSelector(@NotNull final GoalSelector old)
+    public CustomGoalSelector(final EntityAITasks old)
     {
         super(old.profiler);
         importFrom(old);
-        super.goals = this.goals;
-        super.profiler = this.profiler;
-    }
+        super.taskEntries = old.taskEntries;
+        super.profiler = old.profiler;
 
-    /**
-     * Creates a new customgoalselector with the given profiler.
-     *
-     * @param profiler the profiler to use, usually attached to a world object
-     */
-    public CustomGoalSelector(@NotNull final IProfiler profiler)
-    {
-        super(profiler);
-        this.profiler = profiler;
-        super.goals = this.goals;
-        super.profiler = this.profiler;
-        for (Goal.Flag flag : Goal.Flag.values())
-        {
-            flagGoalsArray[flag.ordinal()] = DUMMY;
-        }
+        counter = new Random().nextInt(SHOULD_EXECUTE_INTERVAL + 1);
     }
 
     /**
@@ -104,72 +67,53 @@ public class CustomGoalSelector extends GoalSelector
      *
      * @param selector selector to import from
      */
-    public void importFrom(final GoalSelector selector)
+    public void importFrom(final EntityAITasks selector)
     {
         if (selector == null)
         {
             return;
         }
 
-        // import current goals for flags
-        for (Goal.Flag flag : Goal.Flag.values())
+        for (EntityAITaskEntry task : selector.taskEntries)
         {
-            flagGoalsArray[flag.ordinal()] = selector.flagGoals.getOrDefault(flag, DUMMY);
+            CustomPriotizedSlowedGoal goal = Performant.goalData.getPriotizedGoalFor(task.priority, task.action, this);
+            goal.isrunning = task.using;
+            if (task.using && !task.action.isInterruptible())
+            {
+                runningNoOverRuleFlags |= task.action.getMutexBits();
+            }
+            goals.add(goal);
         }
-
-        // Set goal list reference to existing
-        goals = selector.goals;
-
-        final Set<PrioritizedGoal> tempGoals = new LinkedHashSet<>();
-        for (PrioritizedGoal goal : goals)
-        {
-            addGoalOrCustomToList(goal.getPriority(), goal.getGoal(), tempGoals);
-        }
-
-        // set goals
-        goals = tempGoals;
-        selector.goals = tempGoals;
+        goals.sort(Comparator.comparingInt(CustomPriotizedSlowedGoal::getPriority));
 
         // Set profiler reference
         profiler = selector.profiler;
 
         // Set which flags are disabled
-        for (Goal.Flag flag : selector.disabledFlags)
-        {
-            disabledFlagsArray[flag.ordinal()] = true;
-        }
-    }
-
-    /**
-     * Adds a new goal to the selector. Creates a custom or normal priotizedgoal, depending on type.
-     *
-     * @param priority priority to use
-     * @param goal     goal to add
-     * @param goalList list of goals to add to
-     */
-    private void addGoalOrCustomToList(final int priority, final Goal goal, final Set<PrioritizedGoal> goalList)
-    {
-        goalList.add(Performant.goalData.getPriotizedGoalFor(priority, goal, this));
+        disabledFlags = selector.disabledControlFlags;
     }
 
     /**
      * Add a now AITask. Args : priority, task
      */
-    public void addGoal(int priority, Goal task)
+    @Override
+    public void addTask(int priority, EntityAIBase task)
     {
-        addGoalOrCustomToList(priority, task, goals);
+        goals.add(Performant.goalData.getPriotizedGoalFor(priority, task, this));
+        goals.sort(Comparator.comparingInt(CustomPriotizedSlowedGoal::getPriority));
     }
 
     /**
      * removes the indicated task from the entity's AI tasks.
      */
-    public void removeGoal(Goal task)
+    @Override
+    public void removeTask(EntityAIBase task)
     {
         this.goals.stream().filter((goal) -> {
-            return goal.getGoal() == task;
-        }).filter(PrioritizedGoal::isRunning).forEach(PrioritizedGoal::resetTask);
+            return goal.goal == task;
+        }).filter(CustomPriotizedSlowedGoal::isRunning).forEach(this::resetGoal);
         this.goals.removeIf((goal) -> {
-            return goal.getGoal() == task;
+            return goal.goal == task;
         });
     }
 
@@ -179,19 +123,9 @@ public class CustomGoalSelector extends GoalSelector
      * @param goal
      * @return
      */
-    private boolean goalContainsDisabledFlag(final PrioritizedGoal goal)
+    private boolean goalContainsDisabledFlag(final CustomPriotizedSlowedGoal goal)
     {
-        for (int i = 0; i < FLAG_COUNT; i++)
-        {
-            if (disabledFlagsArray[i])
-            {
-                if (goal.getMutexFlags().contains(Goal.Flag.values()[i]))
-                {
-                    return true;
-                }
-            }
-        }
-        return false;
+        return (disabledFlags & goal.goal.getMutexBits()) != 0;
     }
 
     /**
@@ -200,17 +134,24 @@ public class CustomGoalSelector extends GoalSelector
      * @param goal1 goal to check
      * @return true if it overrules the existing goal.
      */
-    private boolean isPreemptedByAll(final PrioritizedGoal goal1)
+    private boolean isPreemptedByAll(final CustomPriotizedSlowedGoal goal1)
     {
-        for (int i = 0; i < FLAG_COUNT; i++)
+        return (runningFlags & goal1.goal.getMutexBits()) == 0 && (runningNoOverRuleFlags & goal1.goal.getMutexBits()) == 0;
+    }
+
+    /**
+     * Resets the current goal.
+     *
+     * @param goal
+     */
+    private void resetGoal(final CustomPriotizedSlowedGoal goal)
+    {
+        if (goal.isrunning && !goal.goal.isInterruptible())
         {
-            final PrioritizedGoal compareGoal = flagGoalsArray[i];
-            if (compareGoal.isRunning() && !compareGoal.isPreemptedBy(goal1) && goal1.getMutexFlags().contains(Goal.Flag.values()[i]))
-            {
-                return false;
-            }
+            runningNoOverRuleFlags &= ~goal.goal.getMutexBits();
         }
-        return true;
+        goal.goal.resetTask();
+        goal.isrunning = false;
     }
 
     /**
@@ -218,33 +159,36 @@ public class CustomGoalSelector extends GoalSelector
      * about 6 times faster, when checking at the same rate as the vanilla one, resulting in about 3-4 times less time spent updating and executing AI goals. When updating
      * non-running goals only every 4 ticks it goes up to about 10% of vanilla's time spent for the whole update goals and their execution.
      */
-    public void tick()
+    @Override
+    public void onUpdateTasks()
     {
         this.profiler.startSection("goalUpdate");
         counter++;
+        runningFlags = 0;
 
-        for (final PrioritizedGoal currentGoal : goals)
+        for (final CustomPriotizedSlowedGoal currentGoal : goals)
         {
-            if (currentGoal.isRunning() && (goalContainsDisabledFlag(currentGoal) || !currentGoal.shouldContinueExecuting()))
+            if (currentGoal.isRunning() && (goalContainsDisabledFlag(currentGoal) || (currentGoal.goal.isInterruptible() && (runningFlags & currentGoal.goal.getMutexBits()) != 0)
+                                              || !currentGoal.shouldContinueExecuting()))
             {
-                currentGoal.resetTask();
+                resetGoal(currentGoal);
             }
 
             // Vanilla behaviour changed to checking it each tick with 1.14
             if (counter == 1 && !currentGoal.isRunning() && !goalContainsDisabledFlag(currentGoal) && isPreemptedByAll(currentGoal) && currentGoal.shouldExecute())
             {
-                for (Goal.Flag flag : currentGoal.getMutexFlags())
+                if (!currentGoal.goal.isInterruptible())
                 {
-                    final PrioritizedGoal prioritizedgoal = flagGoalsArray[flag.ordinal()];
-                    prioritizedgoal.resetTask();
-                    flagGoalsArray[flag.ordinal()] = currentGoal;
+                    runningNoOverRuleFlags |= currentGoal.goal.getMutexBits();
                 }
-                currentGoal.startExecuting();
+                currentGoal.goal.startExecuting();
+                currentGoal.isrunning = true;
             }
 
             if (currentGoal.isRunning())
             {
-                currentGoal.tick();
+                runningFlags |= currentGoal.goal.getMutexBits();
+                currentGoal.updateTask();
             }
         }
 
@@ -255,51 +199,30 @@ public class CustomGoalSelector extends GoalSelector
         this.profiler.endSection();
     }
 
-    /**
-     * Gets all goals currently running
-     *
-     * @return
-     */
-    public Stream<PrioritizedGoal> getRunningGoals()
+    public boolean isControlFlagDisabled(int flag)
     {
-        return this.goals.stream().filter(PrioritizedGoal::isRunning);
+        return (this.disabledControlFlags & flag) > 0;
     }
 
-    /**
-     * Disables the given flag
-     *
-     * @param flag
-     */
-    public void disableFlag(Goal.Flag flag)
+    public void disableControlFlag(int flag)
     {
-        this.disabledFlagsArray[flag.ordinal()] = true;
+        this.disabledControlFlags |= flag;
     }
 
-    /**
-     * Enables the given flag
-     *
-     * @param flag
-     */
-    public void enableFlag(Goal.Flag flag)
+    public void enableControlFlag(int flag)
     {
-        this.disabledFlagsArray[flag.ordinal()] = false;
+        this.disabledControlFlags &= ~flag;
     }
 
-    /**
-     * Sets the flag to enabled or disabled
-     *
-     * @param flag    Flag to set
-     * @param enabled enable or disable it
-     */
-    public void setFlag(Goal.Flag flag, boolean enabled)
+    public void setControlFlag(int flag, boolean enable)
     {
-        if (enabled)
+        if (enable)
         {
-            this.enableFlag(flag);
+            this.enableControlFlag(flag);
         }
         else
         {
-            this.disableFlag(flag);
+            this.disableControlFlag(flag);
         }
     }
 }

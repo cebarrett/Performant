@@ -3,16 +3,25 @@ package com.performant.coremod;
 import com.performant.coremod.config.Configuration;
 import com.performant.coremod.entity.ai.CustomGoalTypeData;
 import com.performant.coremod.event.EventHandler;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.NotNull;
 
-// The value here should match an entry in the META-INF/mods.toml file
-@Mod(Constants.MOD_ID)
+@Mod.EventBusSubscriber
+@Mod(modid = Constants.MOD_ID, name = Constants.MOD_ID, version = Constants.VERSION)
 public class Performant
 {
+    @Mod.Instance(Constants.MOD_ID)
+    public static Performant instance;
+    static
+    {
+        MinecraftForge.EVENT_BUS.register(new EventHandler());
+        goalData = new CustomGoalTypeData();
+    }
+
     public static final Logger LOGGER = LogManager.getLogger();
 
     /**
@@ -22,24 +31,15 @@ public class Performant
 
     public static CustomGoalTypeData goalData;
 
-    public Performant()
+    @Mod.EventHandler
+    public void preInit(@NotNull final FMLPreInitializationEvent event)
     {
+        @NotNull final net.minecraftforge.common.config.Configuration configuration = new net.minecraftforge.common.config.Configuration(event.getSuggestedConfigurationFile());
+        configuration.load();
 
-        config = new Configuration();
-        FMLJavaModLoadingContext.get().getModEventBus().addListener(this::setup);
-
-        Mod.EventBusSubscriber.Bus.FORGE.bus().get().register(EventHandler.class);
-    }
-
-    public static Configuration getConfig()
-    {
-        return config;
-    }
-
-    private void setup(final FMLCommonSetupEvent event)
-    {
-        // some preinit code
-        LOGGER.info("Performant loaded.");
-        goalData = new CustomGoalTypeData();
+        if (configuration.hasChanged())
+        {
+            configuration.save();
+        }
     }
 }

@@ -3,28 +3,28 @@ package com.performant.coremod.entity.ai;
 import com.google.common.collect.Sets;
 import com.performant.coremod.Performant;
 import net.minecraft.entity.ai.EntityAIBase;
-import net.minecraft.entity.ai.EntityAISwimming;
 import net.minecraft.entity.ai.EntityAITasks;
 import net.minecraft.profiler.Profiler;
 
-import java.util.*;
+import java.util.Iterator;
+import java.util.Set;
 
-public class VanillaGoalSelectorMeasurementOpt extends EntityAITasks
+/**
+ * TestClass with vanilla logic
+ */
+public class VanillaGoalSelectorMeasurement extends EntityAITasks
 {
-    public VanillaGoalSelectorMeasurementOpt(EntityAITasks old)
+    public VanillaGoalSelectorMeasurement(EntityAITasks old)
     {
         super(old.profiler);
         this.profiler = old.profiler;
         super.taskEntries = old.taskEntries;
         this.taskEntries = old.taskEntries;
-        for (EntityAITaskEntry en : old.taskEntries)
+        for (EntityAITasks.EntityAITaskEntry en : old.taskEntries)
         {
             en.using = false;
         }
 
-        List<EntityAITaskEntry> tList = new ArrayList<>(taskEntries);
-        tList.sort(Comparator.comparingInt(t -> t.priority));
-        taskEntries = new LinkedHashSet<>(tList);
 
         super.disabledControlFlags = old.disabledControlFlags;
         this.disabledControlFlags = old.disabledControlFlags;
@@ -33,31 +33,25 @@ public class VanillaGoalSelectorMeasurementOpt extends EntityAITasks
     /**
      * A list of EntityAITaskEntrys in EntityAITasks.
      */
-    public        Set<EntityAITaskEntry> taskEntries          = Sets.<EntityAITaskEntry>newLinkedHashSet();
+    public        Set<EntityAITaskEntry>               taskEntries          = Sets.<EntityAITasks.EntityAITaskEntry>newLinkedHashSet();
     /**
      * A list of EntityAITaskEntrys that are currently being executed.
      */
-    private final Set<EntityAITaskEntry> executingTaskEntries = Sets.<EntityAITaskEntry>newLinkedHashSet();
+    private final Set<EntityAITasks.EntityAITaskEntry> executingTaskEntries = Sets.<EntityAITasks.EntityAITaskEntry>newLinkedHashSet();
     /**
      * Instance of Profiler.
      */
-    public        Profiler               profiler;
-    private       int                    tickCount;
-    private       int                    tickRate             = 3;
-    public        int                    disabledControlFlags;
-
-    private int runningFlags           = 0;
-    private int runningNoOverRuleFlags = 0;
+    public        Profiler                             profiler;
+    private       int                                  tickCount;
+    private       int                                  tickRate             = 3;
+    public        int                                  disabledControlFlags;
 
     /**
      * Add a now AITask. Args : priority, task
      */
     public void addTask(int priority, EntityAIBase task)
     {
-        this.taskEntries.add(new EntityAITaskEntry(priority, task));
-        List<EntityAITaskEntry> tList = new ArrayList<>(taskEntries);
-        tList.sort(Comparator.comparingInt(t -> t.priority));
-        taskEntries = new LinkedHashSet<>(tList);
+        this.taskEntries.add(new EntityAITasks.EntityAITaskEntry(priority, task));
     }
 
     /**
@@ -69,7 +63,7 @@ public class VanillaGoalSelectorMeasurementOpt extends EntityAITasks
 
         while (iterator.hasNext())
         {
-            EntityAITaskEntry entityaitasks$entityaitaskentry = iterator.next();
+            EntityAITasks.EntityAITaskEntry entityaitasks$entityaitaskentry = iterator.next();
             EntityAIBase entityaibase = entityaitasks$entityaitaskentry.action;
 
             if (entityaibase == task)
@@ -96,11 +90,9 @@ public class VanillaGoalSelectorMeasurementOpt extends EntityAITasks
         long d = System.nanoTime();
         this.profiler.startSection("goalSetup");
 
-        runningFlags = 0;
-
         if (this.tickCount++ % this.tickRate == 0)
         {
-            for (EntityAITaskEntry entityaitasks$entityaitaskentry : this.taskEntries)
+            for (EntityAITasks.EntityAITaskEntry entityaitasks$entityaitaskentry : this.taskEntries)
             {
                 if (entityaitasks$entityaitaskentry.using)
                 {
@@ -113,11 +105,6 @@ public class VanillaGoalSelectorMeasurementOpt extends EntityAITasks
                 }
                 else if (this.canUse(entityaitasks$entityaitaskentry))
                 {
-                    if (entityaitasks$entityaitaskentry.action instanceof EntityAISwimming)
-                    {
-                        swimming++;
-                    }
-
                     if (entityaitasks$entityaitaskentry.action.shouldExecute())
                     {
                         entityaitasks$entityaitaskentry.using = true;
@@ -134,39 +121,46 @@ public class VanillaGoalSelectorMeasurementOpt extends EntityAITasks
             while (iterator.hasNext())
             {
                 EntityAITasks.EntityAITaskEntry entityaitasks$entityaitaskentry1 = iterator.next();
-                if (entityaitasks$entityaitaskentry1.using && !this.canContinue(entityaitasks$entityaitaskentry1))
+
+                if (!this.canContinue(entityaitasks$entityaitaskentry1))
                 {
                     entityaitasks$entityaitaskentry1.using = false;
                     entityaitasks$entityaitaskentry1.action.resetTask();
-                    this.executingTaskEntries.remove(entityaitasks$entityaitaskentry1);
+                    iterator.remove();
                 }
             }
         }
 
-
-        for (EntityAITasks.EntityAITaskEntry entityaitasks$entityaitaskentry2 : this.executingTaskEntries)
-        {
-            entityaitasks$entityaitaskentry2.action.updateTask();
-        }
-
         this.profiler.endSection();
 
+        if (!this.executingTaskEntries.isEmpty())
+        {
+            this.profiler.startSection("goalTick");
+
+            for (EntityAITasks.EntityAITaskEntry entityaitasks$entityaitaskentry2 : this.executingTaskEntries)
+            {
+                entityaitasks$entityaitaskentry2.action.updateTask();
+            }
+
+            this.profiler.endSection();
+        }
         d = System.nanoTime() - d;
         totaltime += d;
         runs++;
         if (runs >= 100000)
         {
-            Performant.LOGGER.warn("Avg vanilla opt custom tick: " + totaltime / runs + " swim attempts:" + swimming);
+            Performant.LOGGER.warn("Avg vanilla custom tick: " + totaltime / runs + " swimming attempts:" + swimming);
             totaltime = 0;
             runs = 0;
             swimming = 0;
         }
+
     }
 
     /**
      * Determine if a specific AI Task should continue being executed.
      */
-    private boolean canContinue(EntityAITaskEntry taskEntry)
+    private boolean canContinue(EntityAITasks.EntityAITaskEntry taskEntry)
     {
         return taskEntry.action.shouldContinueExecuting();
     }
@@ -178,7 +172,7 @@ public class VanillaGoalSelectorMeasurementOpt extends EntityAITasks
     static long canUseTime  = 0;
     static long canUseCount = 0;
 
-    private boolean canUse(EntityAITaskEntry taskEntry)
+    private boolean canUse(EntityAITaskEntry taskEntry, int a)
     {
         long d = System.nanoTime();
         boolean res = canUse(taskEntry, 1);
@@ -187,14 +181,14 @@ public class VanillaGoalSelectorMeasurementOpt extends EntityAITasks
         canUseCount++;
         if (canUseCount >= 100000)
         {
-            Performant.LOGGER.warn("OPT:CANUSEAVG:" + canUseTime);
+            Performant.LOGGER.warn("VANILLA:CANUSEAVG:" + canUseTime);
             canUseCount = 0;
             canUseTime = 0;
         }
         return res;
     }
 
-    private boolean canUse(EntityAITaskEntry taskEntry, int a)
+    private boolean canUse(EntityAITasks.EntityAITaskEntry taskEntry)
     {
         if (this.executingTaskEntries.isEmpty())
         {
@@ -223,6 +217,7 @@ public class VanillaGoalSelectorMeasurementOpt extends EntityAITasks
                     }
                 }
             }
+
             return true;
         }
     }
@@ -230,7 +225,7 @@ public class VanillaGoalSelectorMeasurementOpt extends EntityAITasks
     /**
      * Returns whether two EntityAITaskEntries can be executed concurrently
      */
-    private boolean areTasksCompatible(EntityAITaskEntry taskEntry1, EntityAITaskEntry taskEntry2)
+    private boolean areTasksCompatible(EntityAITasks.EntityAITaskEntry taskEntry1, EntityAITasks.EntityAITaskEntry taskEntry2)
     {
         return (taskEntry1.action.getMutexBits() & taskEntry2.action.getMutexBits()) == 0;
     }

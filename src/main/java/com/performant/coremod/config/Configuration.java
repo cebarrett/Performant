@@ -1,35 +1,37 @@
 package com.performant.coremod.config;
 
-import net.minecraftforge.common.ForgeConfigSpec;
-import net.minecraftforge.fml.ModLoadingContext;
-import net.minecraftforge.fml.config.ModConfig;
-import org.apache.commons.lang3.tuple.Pair;
+import net.minecraftforge.common.config.Config;
 
+import static com.performant.coremod.Constants.MOD_ID;
+
+@Config(modid = MOD_ID)
 public class Configuration
 {
-    /**
-     * Loaded everywhere, not synced
-     */
-    private final CommonConfiguration commonConfig;
+    @Config.Comment("All configurations related to AI")
+    public static AI ai = new AI();
 
-    /**
-     * Loaded clientside, not synced
-     */
-    // private final ClientConfiguration clientConfig;
+    @Config.Comment("All configurations related to Experimental changes, those are experimental because they are hacky and could cause issues. Disable if any world/collision/nearby entity crashes happen.")
+    public static Experimental ex = new Experimental();
 
-    /**
-     * Builds configuration tree.
-     */
-    public Configuration()
+    public static class AI
     {
-        final Pair<CommonConfiguration, ForgeConfigSpec> com = new ForgeConfigSpec.Builder().configure(CommonConfiguration::new);
-        ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, com.getRight());
+        @Config.Comment("Interval in which non-running AI tasks are rechecked. Vanilla default is 3, this mods suggested default is 4")
+        @Config.RangeInt(min = 1, max = 500)
+        public int goalSelectorTickRate = 4;
 
-        commonConfig = com.getLeft();
+        @Config.Comment("Whether to use a slower SwimmingAI, default: true")
+        public boolean slowerSwimmingAI = true;
+
+        @Config.Comment("Whether to use a slower TemptAI check, default: true")
+        public boolean slowerTemptCheck = true;
+
+        @Config.Comment("Whether to use a slower WanderAI check, default: true")
+        public boolean slowerWander = true;
     }
 
-    public CommonConfiguration getCommon()
+    public static class Experimental
     {
-        return commonConfig;
+        @Config.Comment("Use world replacement, default: true")
+        public boolean worldReplace = true;
     }
 }
