@@ -10,6 +10,7 @@ public class CommonConfiguration extends AbstractConfiguration
     public final ForgeConfigSpec.BooleanValue optimizeHurtByTarget;
     public final ForgeConfigSpec.BooleanValue optimizePanic;
     public final ForgeConfigSpec.BooleanValue optimizeBreed;
+    public final ForgeConfigSpec.BooleanValue slowFleeSun;
 
     protected CommonConfiguration(final ForgeConfigSpec.Builder builder)
     {
@@ -43,6 +44,11 @@ public class CommonConfiguration extends AbstractConfiguration
           "Whether to use a slower updated AI Breed entity goal, breed is used for searching nearby similar animals and doesnt have to be checked that often. default = true")
           .push("Entity");
         optimizeBreed = defineBoolean(builder, "optimizeBreed", true);
+
+        builder.comment(
+          "Whether to use a slower updated AI Fox fleesun goal, which causes too much load. default = true")
+          .push("Entity");
+        slowFleeSun = defineBoolean(builder, "slowFleeSun", true);
         finishCategory(builder);
     }
 }

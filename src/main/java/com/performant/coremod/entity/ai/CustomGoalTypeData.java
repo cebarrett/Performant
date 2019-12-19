@@ -66,6 +66,7 @@ public class CustomGoalTypeData
             1,
             2,
             Performant.getConfig().getCommon().optimizeHurtByTarget.get()));
+        GOAL_TYPES.put(FleeSunGoal.class, new CustomGoalTypeParameter(g -> g, 20, 1, Performant.getConfig().getCommon().slowFleeSun.get()));
     }
 
     /**
