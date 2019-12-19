@@ -41,7 +41,7 @@ public class EventHandler
             {
                 EntityLiving mob = (EntityLiving) event.getEntity();
                 mob.targetTasks = new CustomGoalSelector(mob.targetTasks);
-                mob.tasks = new CustomGoalSelector(mob.targetTasks);
+                mob.tasks = new CustomGoalSelector(mob.tasks);
             }
         }
     }
