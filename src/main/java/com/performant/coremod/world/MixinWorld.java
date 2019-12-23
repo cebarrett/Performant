@@ -56,7 +56,7 @@ public class MixinWorld
 
         if (entities != null)
         {
-            if (!entities.isEmpty() && predicate.apply(entities.get(0)))
+            if (!entities.isEmpty() && (predicate == null || predicate.apply(entities.get(0))))
             {
                 ci.setReturnValue(entities);
             }
@@ -87,7 +87,7 @@ public class MixinWorld
         List<Entity> entities = eeCache.get(aabb);
         if (entities != null)
         {
-            if (!entities.isEmpty() && clazz.isInstance(entities.get(0)) && filter.apply((T) entities.get(0)))
+            if (!entities.isEmpty() && clazz.isInstance(entities.get(0)) && (filter == null || filter.apply((T) entities.get(0))))
             {
                 ci.setReturnValue(entities);
             }
