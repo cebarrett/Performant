@@ -26,6 +26,6 @@ If applicable, add screenshots to help explain your problem.
 ** Mod version **
 Your mods version
 
-<-- Please add your latest.log / crash.log below with https://gist.github.com/ -->
+<!--- Please add your latest.log / crash.log below with https://gist.github.com/ -->
 ** Logs **
 Latest/Crash log
