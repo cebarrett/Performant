@@ -1,0 +1,18 @@
+{
+  "package": "com.performant.coremod.world",
+  "required": true,
+  "refmap": "mixins.performant.refmap.json",
+  "target": "@env(DEFAULT)",
+  "minVersion": "0.6",
+  "plugin": "com.performant.coremod.PerformantMixinConfig",
+  "compatibilityLevel": "JAVA_8",
+  "mixins": [
+    "MixinWorld"
+  ],
+  "client": [
+    "MixinWorld"
+  ],
+  "injectors": {
+    "maxShiftBy": 10
+  }
+}

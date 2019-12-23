@@ -1,16 +1,20 @@
-[
 {
-  "modid": "performant",
-  "name": "performant Mod",
-  "description": "Vanilla mod with the aim to improve vanilla performance in certain areas.",
-  "version": "${version}",
-  "mcversion": "${mcversion}",
-  "url": "https://github.com/ldtteam/Performant/",
-  "updateUrl": "",
-  "authorList": ["SomeAddons"],
-  "credits": "",
-  "logoFile": "",
-  "screenshots": [],
-  "dependencies": []
+ "modListVersion": 2,
+  "modList":
+    [
+    {
+      "modid": "performant",
+      "name": "performant Mod",
+      "description": "Vanilla mod with the aim to improve vanilla performance in certain areas.",
+      "version": "${version}",
+      "mcversion": "${mcversion}",
+      "url": "https://github.com/ldtteam/Performant/",
+      "updateUrl": "",
+      "authorList": ["SomeAddons"],
+      "credits": "",
+      "logoFile": "",
+      "screenshots": [],
+      "dependencies": []
+    }
+    ]
 }
-]

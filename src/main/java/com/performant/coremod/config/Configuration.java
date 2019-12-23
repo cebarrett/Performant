@@ -10,8 +10,8 @@ public class Configuration
     @Config.Comment("All configurations related to AI")
     public static AI ai = new AI();
 
-    @Config.Comment("All configurations related to Experimental changes, those are experimental because they are hacky and could cause issues. Disable if any world/collision/nearby entity crashes happen.")
-    public static Experimental ex = new Experimental();
+    @Config.Comment("All configurations related to non AI entity changes")
+    public static Entity ex = new Entity();
 
     public static class AI
     {
@@ -29,9 +29,9 @@ public class Configuration
         public boolean slowerWander = true;
     }
 
-    public static class Experimental
+    public static class Entity
     {
-        @Config.Comment("Use world replacement, default: true")
-        public boolean worldReplace = true;
+        @Config.Comment("Use fast collision and nearbyentity checks, default: true")
+        public boolean fastCollisionAndEntityChecks = true;
     }
 }

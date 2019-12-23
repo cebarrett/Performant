@@ -2,29 +2,80 @@ buildscript {
     repositories {
         jcenter()
         maven { url = "https://files.minecraftforge.net/maven" }
+        maven { url "http://repo.spongepowered.org/maven" }
     }
     dependencies {
+        classpath "com.github.jengelman.gradle.plugins:shadow:2.0.4"
         classpath 'net.minecraftforge.gradle:ForgeGradle:2.3-SNAPSHOT'
+        classpath "org.spongepowered:mixingradle:0.6-SNAPSHOT"
     }
 }
+
+apply plugin: 'java'
 apply plugin: 'net.minecraftforge.gradle.forge'
+apply plugin: "com.github.johnrengelman.shadow"
+apply plugin: "org.spongepowered.mixin"
 
 apply plugin: 'idea'
 //Only edit below this line, the above code adds and enables the necessary things for Forge to be setup.
 
+mixin {
+    add sourceSets.main, "mixins.performant.refmap.json"
+}
 
-version = "1.12.2-1.4"
-group = "com.ldtteam.performant" // http://maven.apache.org/guides/mini/guide-naming-conventions.html
+reobf {
+    shadowJar {
+        mappingType = "SEARGE"
+    }
+}
+shadowJar {
+    classifier ""
+    exclude "LICENSE.txt", "dummyThing"
+}
+
+repositories
+        {
+            maven { url "http://repo.spongepowered.org/maven" }
+            maven { url "http://www.dimdev.org/maven" }
+        }
+
+version = "1.12.2-1.5"
+group = "com.performant.coremod" // http://maven.apache.org/guides/mini/guide-naming-conventions.html
 archivesBaseName = "performant"
 
 sourceCompatibility = targetCompatibility = '1.8' // Need this here so eclipse task generates correctly.
+targetCompatibility = 1.8
 compileJava {
     sourceCompatibility = targetCompatibility = '1.8'
+}
+
+sourceSets {
+    main
+}
+
+mixin {
+    add sourceSets.main, "mixins.performant.refmap.json"
+}
+
+reobf {
+    shadowJar {
+        mappingType = "SEARGE"
+    }
 }
 
 minecraft {
     version = "1.12.2-14.23.5.2847"
     runDir = "run"
+    makeObfSourceJar false
+
+    def args = [
+            "-Dfml.coreMods.load=com.performant.coremod.PerformantLoadingPlugin",
+            "-Dmixin.hotSwap=true",
+            "-Dmixin.checks.interfaces=true",
+            "-Dmixin.debug.export=true"
+    ]
+    clientJvmArgs.addAll(args)
+    serverJvmArgs.addAll(args)
 
     // the mappings can be changed at any time, and must be in the following format.
     // snapshot_YYYYMMDD   snapshot are built nightly.
@@ -34,18 +85,30 @@ minecraft {
     mappings = "snapshot_20171003"
     // makeObfSourceJar = false // an Srg named sources jar is made by default. uncomment this to disable.
 }
+def cache2kVersion = '1.3.1.Alpha'
 
 dependencies {
     // you may put jars on which you depend on in ./libs
     // or you may define them like so..
     //compile "some.group:artifact:version:classifier"
     //compile "some.group:artifact:version"
-
     compile 'com.intellij:annotations:+@jar'
+    compile 'com.github.ben-manes.caffeine:caffeine:2.8.0'
+
+    implementation "org.cache2k:cache2k-api:${cache2kVersion}"
+    runtimeOnly "org.cache2k:cache2k-core:${cache2kVersion}"
     // real examples
     //compile 'com.mod-buildcraft:buildcraft:6.0.8:dev'  // adds buildcraft to the dev env
     //compile 'com.googlecode.efficient-java-matrix-library:ejml:0.24' // adds ejml to the dev env
-
+    implementation("org.dimdev:mixin:0.7.11-SNAPSHOT") {
+        exclude module: "asm-commons"
+        exclude module: "asm-tree"
+        exclude module: "launchwrapper"
+        exclude module: "guava"
+        exclude module: "log4j-core"
+        exclude module: "gson"
+        exclude module: "commons-io"
+    }
     // the 'provided' configuration is for optional dependencies that exist at compile-time but might not at runtime.
     //provided 'com.mod-buildcraft:buildcraft:6.0.8:dev'
 
@@ -62,12 +125,29 @@ dependencies {
 
 jar {
 
-    manifest {
-
-        attributes 'FMLAT': 'performant_at.cfg'
-    }
+    manifest.attributes(
+        "FMLCorePlugin": "com.performant.coremod.PerformantLoadingPlugin",
+            "FMLCorePluginContainsFMLMod": "true",
+            'FMLAT': 'performant_at.cfg'
+    )
 }
 
+shadowJar {
+    classifier ""
+    exclude "LICENSE.txt", "dummyThing"
+}
+
+task sourcesJar(type: Jar, dependsOn: classes) {
+    classifier "sources"
+    from sourceSets.main.allSource
+}
+
+
+artifacts {
+    archives jar
+    archives shadowJar
+    archives sourcesJar
+}
 processResources {
     // this will ensure that this task is redone when the versions change.
     inputs.property "version", project.version

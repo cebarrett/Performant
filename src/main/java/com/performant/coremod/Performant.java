@@ -11,7 +11,7 @@ import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 
 @Mod.EventBusSubscriber
-@Mod(modid = Constants.MOD_ID, name = Constants.MOD_ID, version = Constants.VERSION)
+@Mod(modid = Constants.MOD_ID, acceptableRemoteVersions = "*", name = Constants.MOD_ID, version = Constants.VERSION)
 public class Performant
 {
     @Mod.Instance(Constants.MOD_ID)
