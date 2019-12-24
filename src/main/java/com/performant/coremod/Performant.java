@@ -6,12 +6,14 @@ import com.performant.coremod.event.EventHandler;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
+import net.minecraftforge.fml.relauncher.IFMLLoadingPlugin;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 
 @Mod.EventBusSubscriber
 @Mod(modid = Constants.MOD_ID, acceptableRemoteVersions = "*", name = Constants.MOD_ID, version = Constants.VERSION)
+@IFMLLoadingPlugin.SortingIndex(1002)
 public class Performant
 {
     @Mod.Instance(Constants.MOD_ID)

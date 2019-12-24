@@ -39,7 +39,7 @@ repositories
             maven { url "http://www.dimdev.org/maven" }
         }
 
-version = "1.12.2-1.5"
+version = "1.12.2-1.6"
 group = "com.performant.coremod" // http://maven.apache.org/guides/mini/guide-naming-conventions.html
 archivesBaseName = "performant"
 
@@ -124,16 +124,18 @@ dependencies {
 }
 
 jar {
-
+    classifier "nolibs"
     manifest.attributes(
         "FMLCorePlugin": "com.performant.coremod.PerformantLoadingPlugin",
             "FMLCorePluginContainsFMLMod": "true",
-            'FMLAT': 'performant_at.cfg'
+            'FMLAT': 'performant_at.cfg',
+            'TweakClass': 'org.spongepowered.asm.launch.MixinTweaker',
+            'TweakOrder': '10',
+            'ForceLoadAsMod': 'true'
     )
 }
 
 shadowJar {
-    classifier ""
     exclude "LICENSE.txt", "dummyThing"
 }
 

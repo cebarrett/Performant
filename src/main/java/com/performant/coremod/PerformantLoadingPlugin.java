@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 @IFMLLoadingPlugin.MCVersion(ForgeVersion.mcVersion)
-@IFMLLoadingPlugin.SortingIndex(Integer.MIN_VALUE + 10000)
+@IFMLLoadingPlugin.SortingIndex(1001)
 public class PerformantLoadingPlugin implements IFMLLoadingPlugin
 {
     static
