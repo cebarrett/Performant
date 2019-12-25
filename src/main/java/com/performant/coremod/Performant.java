@@ -12,7 +12,7 @@ import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 
 @Mod.EventBusSubscriber
-@Mod(modid = Constants.MOD_ID, acceptableRemoteVersions = "*", name = Constants.MOD_ID, version = Constants.VERSION)
+@Mod(modid = Constants.MOD_ID, acceptableRemoteVersions = "*", name = Constants.MOD_ID, version = Constants.VERSION, certificateFingerprint = "C0:AE:08:66:66:27:2A:00:C5:2D:79:38:4D:30:AF:84:B1:0D:8E:12")
 @IFMLLoadingPlugin.SortingIndex(1002)
 public class Performant
 {
