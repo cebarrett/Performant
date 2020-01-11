@@ -48,7 +48,7 @@ public class CustomHurtByTargetGoal extends HurtByTargetGoal
         }
 
         final double targetDistance = this.getTargetDistance();
-        final List<MobEntity> mobEntities = this.goalOwner.world.func_225317_b(this.goalOwner.getClass(),
+        final List<MobEntity> mobEntities = this.goalOwner.world.getEntitiesWithinAABB(this.goalOwner.getClass(),
           (new AxisAlignedBB(this.goalOwner.posX,
             this.goalOwner.posY,
             this.goalOwner.posZ,

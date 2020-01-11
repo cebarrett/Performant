@@ -14,7 +14,7 @@ public class CustomHurtByTargetGoalPigman extends CustomHurtByTargetGoal
     @Override
     public void setAttackTarget(MobEntity mobIn, LivingEntity targetIn)
     {
-        if (mobIn instanceof ZombiePigmanEntity && this.goalOwner.canEntityBeSeen(targetIn) && ((ZombiePigmanEntity) mobIn).becomeAngryAt(targetIn))
+        if (mobIn instanceof ZombiePigmanEntity && this.goalOwner.canEntityBeSeen(targetIn) && ((ZombiePigmanEntity) mobIn).func_226547_i_(targetIn))
         {
             mobIn.setAttackTarget(targetIn);
         }
