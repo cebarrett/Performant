@@ -8,8 +8,7 @@ import net.minecraft.entity.ai.goal.PrioritizedGoal;
 import net.minecraft.profiler.IProfiler;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.LinkedHashSet;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Stream;
 
 /**
@@ -58,6 +57,26 @@ public class CustomGoalSelector extends GoalSelector
      * Amount of flags.
      */
     private static final int FLAG_COUNT = Goal.Flag.values().length;
+
+    /**
+     * Whether we're currently ticking
+     */
+    private boolean ticking = false;
+
+    /**
+     * Whether the goals changed during an update
+     */
+    private boolean goalsChanged = false;
+
+    /**
+     * Goals to add
+     */
+    private Set<PrioritizedGoal> toAdd = Sets.newHashSet();
+
+    /**
+     * Goals to remove
+     */
+    private List<Goal> toRemove = new ArrayList<>();
 
     /**
      * Tick counter
@@ -155,22 +174,57 @@ public class CustomGoalSelector extends GoalSelector
     /**
      * Add a now AITask. Args : priority, task
      */
-    public void addGoal(int priority, Goal task)
+    public void addGoal(int priority, final Goal task)
     {
-        addGoalOrCustomToList(priority, task, goals);
+        if (ticking)
+        {
+            goalsChanged = true;
+            addGoalOrCustomToList(priority, task, toAdd);
+        }
+        else
+        {
+            addGoalOrCustomToList(priority, task, goals);
+        }
     }
 
     /**
      * removes the indicated task from the entity's AI tasks.
      */
-    public void removeGoal(Goal task)
+    public void removeGoal(final Goal task)
     {
-        this.goals.stream().filter((goal) -> {
-            return goal.getGoal() == task;
-        }).filter(PrioritizedGoal::isRunning).forEach(PrioritizedGoal::resetTask);
-        this.goals.removeIf((goal) -> {
-            return goal.getGoal() == task;
-        });
+        if (ticking)
+        {
+            goalsChanged = true;
+            toRemove.add(task);
+        }
+        else
+        {
+            removeGoalFromList(goals, task);
+        }
+    }
+
+    /**
+     * Safely removes an element from the goals list.
+     *
+     * @param goalList
+     * @param taskToRemove
+     */
+    private static void removeGoalFromList(final Collection<PrioritizedGoal> goalList, final Goal taskToRemove)
+    {
+        final Iterator<PrioritizedGoal> i = goalList.iterator();
+        while (i.hasNext())
+        {
+            PrioritizedGoal goal = i.next();
+
+            if (goal.getGoal() == taskToRemove)
+            {
+                if (goal.isRunning())
+                {
+                    goal.resetTask();
+                }
+                i.remove();
+            }
+        }
     }
 
     /**
@@ -220,6 +274,7 @@ public class CustomGoalSelector extends GoalSelector
      */
     public void tick()
     {
+        ticking = true;
         this.profiler.startSection("goalUpdate");
         counter++;
 
@@ -253,6 +308,21 @@ public class CustomGoalSelector extends GoalSelector
             counter = 0;
         }
         this.profiler.endSection();
+        ticking = false;
+
+        if (goalsChanged)
+        {
+            goalsChanged = false;
+
+            goals.addAll(toAdd);
+            toAdd.clear();
+
+            for (final Goal goal : toRemove)
+            {
+                removeGoalFromList(goals, goal);
+            }
+            toRemove.clear();
+        }
     }
 
     /**
